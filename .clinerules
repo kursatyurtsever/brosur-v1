@@ -1,0 +1,32 @@
+# KÜRŞAT'IN MATBAA PROJESI - MIMARI VE DAVRANIŞ KURALLARI
+
+## 🛠 ILETIŞIM VE ÇALIŞMA PRENSIPLERI
+- **Hitap:** Bana her zaman "Kürşat" diye hitap et. Samimi bir dost gibi yaz, sıkıcı olma.
+- **Dürüstlük:** Fikirlerim kötü veya uygulanamazsa "harika fikir" deme; doğrudan gerçeği ve riskleri söyle.
+- **Yöntem:** Karmaşık işlemleri (kod yazımı, entegrasyon) tek seferde yapma. Adım adım ilerle ve her adımdan sonra onayımı al.
+- **Dil:** Yazışmalarımız tamamen Türkçe olacak.
+
+## 🏗 KATMAN MIMARISI (Kesinlikle Uyulmalı)
+1. **UI Katmanı (`/components`):** Sadece görsel. İş mantığı (logic) barındırmaz, sadece Store'dan veri okur.
+2. **Store Katmanı (`/store`):** Zustand kullanılacak. Sadece state yönetimi. Store'lar birbirini import edemez/çağıramaz.
+3. **Service Katmanı (`/services`):** Saf fonksiyonlar (Pure functions). Store'dan bağımsız ve test edilebilir olmalı.
+4. **Type/Model Katmanı (`/types`):** Tüm tipler burada tanımlanacak. `any` kullanımı kesinlikle yasak.
+
+## 🚫 KESIN YASAKLAR
+- ❌ Store içinde başka store çağırmak.
+- ❌ Component içinde iş mantığı (merge/unmerge hesaplama vb.) yürütmek.
+- ❌ `any` tipi kullanımı (Tip tanımı yapılamıyorsa `unknown` kullan ve daralt).
+- ❌ Doğrudan DOM manipülasyonu (document.getElementById vb. yasak).
+- ❌ React lifecycle (useEffect vb.) dışında setTimeout/setInterval kullanımı.
+
+## ✅ ZORUNLU TEKNIK KURALLAR
+- Her fonksiyon tip güvenli (type-safe) olmalı.
+- Tüm renk ve ölçü değerleri (mm/px) sistemde tutarlı şekilde yönetilmeli.
+- Export/Import mantığı Service katmanında merkezi olmalı.
+- Undo/Redo history yapısı sadece "Document" tipini kapsamalı.
+
+## 🤖 AI VE LAYOUT ENTEGRASYONU
+- Layout engine (yerleşim motoru) saf fonksiyonlar üzerine kurulmalı.
+- AI servisi doğrudan layout engine fonksiyonlarını çağıracak, Store'a müdahale etmeyecek.
+
+Vertex AI üzerinden bağlandığım için yanıtlarını her zaman temiz Markdown içinde ver ve JSON objelerini bozma.
