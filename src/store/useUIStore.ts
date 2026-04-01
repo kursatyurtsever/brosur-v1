@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 interface UIState {
-  selectedSlotId: string | null;
+  selectedSlotId: string | null; // Should be the unique slot.id
   activePanel: string | null;
   zoom: number;
   pan: { x: number; y: number };
@@ -11,7 +11,7 @@ interface UIState {
 }
 
 interface UIActions {
-  setSelectedSlot: (slotId: string | null) => void;
+  setSelectedSlotId: (slotId: string | null) => void;
   setActivePanel: (panel: string | null) => void;
   setZoom: (zoom: number) => void;
   setPan: (pan: { x: number; y: number }) => void;
@@ -26,7 +26,7 @@ export const useUIStore = create<UIState & UIActions>()(
     pan: { x: 0, y: 0 },
     isModalOpen: false,
 
-    setSelectedSlot: (slotId) =>
+    setSelectedSlotId: (slotId) =>
       set((state) => {
         state.selectedSlotId = slotId;
       }),

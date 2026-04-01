@@ -1,54 +1,233 @@
-# KÜRŞAT'IN MATBAA PROJESI - MIMARI VE DAVRANIŞ KURALLARI
+# MATBAA PROJESİ — KESİN ÇALIŞMA VE MİMARİ KURALLARI (v2)
+# A3 sonrası mimari pivot dahil. Bu dosya projenin tek gerçek kaynağıdır.
 
-## 🛠 ILETIŞIM VE ÇALIŞMA PRENSIPLERI
-- **Hitap:** Bana her zaman "Kürşat" diye hitap et. Samimi bir dost gibi yaz, sıkıcı olma.
-- **Dürüstlük:** Fikirlerim kötü veya uygulanamazsa "harika fikir" deme; doğrudan gerçeği ve riskleri söyle.
-- **Yöntem:** Karmaşık işlemleri (kod yazımı, entegrasyon) tek seferde yapma. Adım adım ilerle ve her adımdan sonra onayımı al.
-- **Dil:** Yazışmalarımız tamamen Türkçe olacak.
+---
 
-## 🏗 KATMAN MIMARISI (Kesinlikle Uyulmalı)
-1. **UI Katmanı (`/components`):** Sadece görsel. İş mantığı (logic) barındırmaz, sadece Store'dan veri okur.
-2. **Store Katmanı (`/store`):** Zustand kullanılacak. Sadece state yönetimi. Store'lar birbirini import edemez/çağıramaz.
-3. **Service Katmanı (`/services`):** Saf fonksiyonlar (Pure functions). Store'dan bağımsız ve test edilebilir olmalı.
-4. **Type/Model Katmanı (`/types`):** Tüm tipler burada tanımlanacak. `any` kullanımı kesinlikle yasak.
+## 0. İLETİŞİM VE ÇALIŞMA PRENSİPLERİ
 
-## 🚫 KESIN YASAKLAR
-- ❌ Store içinde başka store çağırmak.
-- ❌ Component içinde iş mantığı (merge/unmerge hesaplama vb.) yürütmek.
-- ❌ `any` tipi kullanımı (Tip tanımı yapılamıyorsa `unknown` kullan ve daralt).
-- ❌ Doğrudan DOM manipülasyonu (document.getElementById vb. yasak).
-- ❌ React lifecycle (useEffect vb.) dışında setTimeout/setInterval kullanımı.
+- Benim adım **Kürşat**. Her zaman Türkçe, samimi ve doğrudan bir dille konuş.
+- Fikrim yanlışsa veya riskli bir yol seçiyorsam "harika fikir" deme — gerçeği ve riski söyle.
+- Karmaşık işlemleri (kod yazımı, mimari değişiklik, entegrasyon) **tek seferde toplu yapma.** Adım adım ilerle, her adımdan sonra onayımı al. Ben "Tamam, devam" demeden bir sonraki adıma geçme.
+- Yanıtlarını temiz Markdown içinde ver. JSON objelerini bozma.
+- Her başarılı adımdan sonra `PROGRESS.md` dosyasını güncelle. Bu proje hafızamızdır, hiçbir kayıt silinmez.
 
-## ✅ ZORUNLU TEKNIK KURALLAR
-- Her fonksiyon tip güvenli (type-safe) olmalı.
-- Tüm renk ve ölçü değerleri (mm/px) sistemde tutarlı şekilde yönetilmeli.
-- Export/Import mantığı Service katmanında merkezi olmalı.
-- Undo/Redo history yapısı sadece "Document" tipini kapsamalı.
+---
 
-## 🤖 AI VE LAYOUT ENTEGRASYONU
-- Layout engine (yerleşim motoru) saf fonksiyonlar üzerine kurulmalı.
-- AI servisi doğrudan layout engine fonksiyonlarını çağıracak, Store'a müdahale etmeyecek.
+## 1. KATMAN MİMARİSİ (Kesinlikle Uyulmalı)
 
-Vertex AI üzerinden bağlandığım için yanıtlarını her zaman temiz Markdown içinde ver ve JSON objelerini bozma.
+```
+UI Katmanı       /components   → Sadece görsel. Store'dan okur, iş mantığı barındırmaz.
+Store Katmanı    /store        → Zustand. Sadece state. Store'lar birbirini import edemez.
+Service Katmanı  /services     → Saf fonksiyonlar. Store'dan tamamen bağımsız.
+Type Katmanı     /types        → Tüm tip tanımları. Hiçbir yerden import almaz.
+```
 
-## 📓 PROJE HAFIZASI KURALI
-- Kök dizinde PROGRESS.md dosyası bulunur.
-- Her görev başarıyla tamamlandığında bu dosyaya aşağıdaki formatta bir kayıt eklenir:
+Bu hiyerarşi tek yönlüdür: UI → Store → Service → Types. Geriye doğru import yasaktır.
 
-## Tarih ve Saat
-(İşlemin yapıldığı zaman otomatik olarak eklenecek)
+---
 
-## Yapılan İşlem
+## 2. KESİN YASAKLAR
+
+- ❌ `any` kullanımı. Tipi bilinmiyorsa `unknown` kullan, sonra Type Guard ile daralt.
+- ❌ Store içinde başka store import etmek veya çağırmak.
+- ❌ `layoutEngine` veya `exportService` içinde herhangi bir Zustand store'u import etmek.
+- ❌ `deepMerge` — `GlobalLayoutSettings` ve `SlotSettings` ayrı objelerdir, birleştirilmez.
+- ❌ Slot'larda `x`, `y`, `w`, `h` alanları. Bu mimari A3 sonrası tamamen iptal edilmiştir.
+- ❌ `displayNumber`'ı store'a yazmak. Bu değer her zaman render anında hesaplanır.
+- ❌ Component içinde iş mantığı (merge/unmerge hesaplama, grid matematik vb.).
+- ❌ Doğrudan DOM manipülasyonu (`document.getElementById`, `querySelector` vb.).
+- ❌ React lifecycle dışında `setTimeout` / `setInterval` kullanımı.
+
+---
+
+## 3. TEMEL FELSEFE (Özet Prompt)
+
+> "Bu proje 4×4 sabit grid kullanır, serbest sürüklenen hücre yoktur.
+> `computeGlobalCellH` tüm sayfalar için tek bir ortak hücre yüksekliği üretir.
+> Footer ve gap global ayarlardır, sayfaya özel değildir.
+> Slot'ların `x/y/w/h` alanları yoktur; sadece `gridIndex`, `colSpan`, `rowSpan`,
+> `hidden`, `mode` ve `content` vardır.
+> `GlobalLayoutSettings` ve `SlotSettings` ayrı objelerdir, derinlemesine birleştirilmez.
+> `layoutEngine` ve `exportService` hiçbir store'u import etmez."
+
+---
+
+## 4. VERİ MODELLERİ
+
+### GlobalLayoutSettings
+`useSettingsStore` içinde tutulur ve `persist` ile localStorage'a yazılır.
+```ts
+{
+  gap: number,           // mm cinsinden hücreler arası boşluk
+  footerHeightMm: number,
+  rows: 4,               // Sabit. Değiştirilemez.
+  cols: 4                // Sabit. Değiştirilemez.
+}
+```
+
+### PageConfig
+`useDocStore` içinde tutulur.
+```ts
+{
+  pageNumber: number,
+  widthMm: number,
+  heightMm: number,
+  safeZone: [top: number, right: number, bottom: number, left: number], // mm
+  freeRowsTop: 0 | 1 | 2 | 3 | 4
+}
+```
+
+### Slot
+Eski `x, y, w, h` alanları kesinlikle yasaktır.
+```ts
+{
+  gridIndex: number,        // 1'den 16'ya kadar sabit. Asla değişmez.
+  colSpan: number,          // Varsayılan: 1
+  rowSpan: number,          // Varsayılan: 1
+  hidden: boolean,          // Birleştirilip gizlenen veya free alandaki hücreler
+  mode: 'slot' | 'free',
+  content: SlotContent | null,
+  mergedInto?: number       // Gizlendiyse survivor'ın gridIndex'i
+}
+```
+
+### SlotContent (Union Type)
+```ts
+TextContent | ImageContent | ShapeContent | EmptyContent
+```
+Her SlotContent objesi `generatedBy: null | 'ai'` alanı taşır (YZ entegrasyonu için).
+
+---
+
+## 5. GRID VE NUMARALANDIRMA
+
+- Her sayfa **sabit 16 slot** (4×4) ile başlar. `gridIndex` 1–16 arası sabittir, asla değişmez.
+- **İki ayrı numara kavramı vardır:**
+  - `gridIndex`: Sabit fiziksel konum numarası (1–16).
+  - `displayNumber`: Excel POS sütunuyla eşleşen, ekranda görünen numara.
+- **displayNumber hesabı:** Store'a ASLA yazılmaz. Render sırasında anlık hesaplanır.
+  - `mode: 'free'` olan hücreler atlanır (freeRowsTop kapsamında).
+  - `hidden: true` olan hücreler atlanır (merge edilmiş).
+  - Kalan görünür hücreler yukarıdan aşağıya, soldan sağa sayılır.
+
+---
+
+## 6. SERBEST TASARIM ALANI
+
+- `freeRowsTop` (0–4): Sayfanın üstünden N satır "serbest tasarım alanı" olur.
+- Bu satırlardaki slotlar otomatik olarak `{ hidden: true, mode: 'free' }` işaretlenir.
+- Serbest alan yüksekliği: `freeRowsTop × cellH` mm.
+- Serbest alan slotları canvas'ta render edilir ama `displayNumber` hesabına katılmaz.
+- Z-order ve Layer sistemi sadece serbest alanda devreye girer.
+
+---
+
+## 7. LAYOUT ENGINE
+
+Dosya: `src/services/layoutEngine.ts`
+**Store import edemez. Sadece saf fonksiyonlardan oluşur. Test edilebilir olmalıdır.**
+
+### Temel Fonksiyonlar
+
+```ts
+// Tüm sayfalardaki en kısıtlı safeZone'u bulup ortak tek cellH üretir.
+computeGlobalCellH(
+  pages: PageConfig[],
+  pageHeightMm: number,
+  settings: GlobalLayoutSettings
+): number
+
+// Sayfaya özel grid başlangıcını ve serbest alan yüksekliğini hesaplar.
+computeGridMetrics(
+  page: PageConfig,
+  cellH: number,
+  settings: GlobalLayoutSettings
+): GridMetrics
+
+// GridMetrics tipi:
+{
+  freeAreaHeightMm: number,
+  gridOriginYMm: number,
+  cellW: number,
+  cellH: number,
+  visibleRows: number
+}
+```
+
+YZ entegrasyonunda: `layoutEngine` fonksiyonları `Slot[]` üretir ve doğrudan `exportService`'e verilir. Store aracılık etmez.
+
+---
+
+## 8. CANVAS RENDER SIRASI
+
+CSS Grid kullanılır. `transform` tabanlı sonsuz tuval (infinite canvas) korunur.
+
+```
+Render sırası (yukarıdan aşağı):
+1. Güvenli Alan Çizgisi (safeZone görsel göstergesi)
+2. Serbest Tasarım Alanı (freeRowsTop × cellH)
+3. 4×4 Grid  →  grid-template-columns: repeat(4, {cellW}mm)
+                grid-template-rows: repeat({visibleRows}, {cellH}mm)
+                gap: {gap}mm
+4. Footer
+```
+
+- Zoom matematiği: imleç odaklı (zoom-to-mouse pointer), `delta / scale` formülü.
+- Pan: `Ctrl + Sol Tık` veya `Orta Tuş`. Sürükleme ile çakışmaz.
+- Canvas state'i `useDocStore`'dan okur, doğrudan store'a yazmaz.
+- 96 DPI canvas render, 300 DPI export — aynı `mmToPx(mm, dpi)` fonksiyonu, farklı parametre.
+
+---
+
+## 9. BİRLEŞTİRME (MERGE) KURALLARI
+
+- Yalnızca **dikdörtgen** seçimler birleştirilebilir. L şekli, köşegen seçim geçersizdir.
+- Birleşik hücre, seçimdeki **en küçük `gridIndex`'i alır** (Survivor).
+- Gizlenen hücreler: `{ hidden: true, mergedInto: survivorGridIndex }`.
+- Merge ve unmerge işlemleri `useDocStore` Undo/Redo history'sine tam olarak girer.
+- Kilitli katmandaki slotlar merge edilemez, sürüklenemez, seçilemez.
+
+---
+
+## 10. STORE MİMARİSİ (Özet)
+
+| Store | Sorumluluk | persist |
+|---|---|---|
+| `useDocStore` | Document, PageConfig[], Slot[], Undo/Redo (max 50 adım) | Hayır |
+| `useUIStore` | selectedSlotId, activePanel, zoom, isModalOpen | Hayır |
+| `useLayerStore` | activeLayerId (pointer, sadece UI seçimi) | Hayır |
+| `useSettingsStore` | GlobalLayoutSettings, dil, autoSaveInterval | Evet ("matbaa-settings-v1") |
+
+Store'lar arası iletişim yasaktır. `useLayerStore` fiziksel veri barındırmaz, sadece seçim işaretçisidir.
+
+---
+
+## 11. EXPORT SERVİSİ
+
+- `src/services/exportService.ts` — `export(document, spec) → Blob`.
+- **Store import edemez.** Sadece `Document` ve `PrintSpec` alır.
+- PDF/X-1a varsayılan format (CMYK zorunlu, fontlar gömülü, şeffaflık yok).
+- Export Web Worker'da çalışır — UI bloklanmaz.
+- Bleed: `TrimBox` ve `BleedBox` PDF metadata'sına yazılır.
+
+---
+
+## 12. PROJE HAFIZASI (PROGRESS.md)
+
+Her başarıyla tamamlanan adımdan sonra kök dizindeki `PROGRESS.md` dosyasına şu formatta kayıt eklenir. Hiçbir kayıt silinmez.
+
+```md
+## [Tarih ve Saat]
+
+### Yapılan İşlem
 (Kısa başlık)
 
-## Teknik Detaylar
+### Teknik Detaylar
 (Kullanılan algoritmalar, mimari kararlar)
 
-## Kritik Kararlar
+### Kritik Kararlar
 (Neden bu yolu seçtik?)
 
-## Sıradaki Adım
+### Sıradaki Adım
 (Yol haritasına göre bir sonraki görev)
-
-- Bu dosya proje hafızasıdır, hiçbir kayıt silinmez.
-- Yol haritası (matbaa_yol_haritasi.docx) dosyanın başında bulunur.
+```

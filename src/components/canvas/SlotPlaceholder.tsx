@@ -1,121 +1,70 @@
 
 "use client";
 
-import { useDocStore } from "@/store/useDocStore";
+import React from 'react';
 import { useUIStore } from "@/store/useUIStore";
-import { Slot } from "@/types";
-import { hexToRgb } from "@/lib/colorUtils";
-import { mmToPx, pxToMm } from "@/services/coordinateUtils";
-import React, { useRef, PointerEvent, useState } from "react";
+import type { Slot } from "@/types";
 import { useShallow } from 'zustand/react/shallow';
-import { TextBlock } from './TextBlock';
+
+// A temporary component to render content, will be replaced later.
+const renderContent = (slot: Slot) => {
+  if (!slot.content) {
+    return null;
+  }
+  switch (slot.content.type) {
+    case 'text':
+      return <p>{slot.content.text}</p>;
+    case 'image':
+      return <img src={slot.content.src} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}}/>;
+    default:
+      return null;
+  }
+};
 
 interface SlotPlaceholderProps {
   slot: Slot;
+  displayNumber: number;
 }
 
-export const SlotPlaceholder: React.FC<SlotPlaceholderProps> = ({ slot }) => {
-  const { setSelectedSlot, selectedSlotId, zoom } = useUIStore(
-    useShallow((state) => ({ 
-        setSelectedSlot: state.setSelectedSlot,
-        selectedSlotId: state.selectedSlotId,
-        zoom: state.zoom
+export const SlotPlaceholder: React.FC<SlotPlaceholderProps> = ({ slot, displayNumber }) => {
+  const { setSelectedSlotId, selectedSlotId } = useUIStore(
+    useShallow((state) => ({
+      setSelectedSlotId: state.setSelectedSlotId,
+      selectedSlotId: state.selectedSlotId,
     }))
   );
-  const updateSlot = useDocStore(state => state.updateSlot);
-  const scale = zoom / 100;
+
+  // Hidden slots (merged or in free-rows) are not rendered at all.
+  if (slot.hidden) {
+    return null;
+  }
+
   const isSelected = selectedSlotId === slot.id;
-  const [isDragging, setIsDragging] = useState(false);
-
-  const dragStartRef = useRef<{ x: number; y: number; left: number; top: number; } | null>(null);
-  const elementRef = useRef<HTMLDivElement>(null);
-
-  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !elementRef.current) return;
-    e.stopPropagation();
-    setSelectedSlot(slot.id);
-
-    elementRef.current.setPointerCapture(e.pointerId);
-    setIsDragging(true);
-
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      left: elementRef.current.offsetLeft,
-      top: elementRef.current.offsetTop,
-    };
-  };
-
-  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStartRef.current || !elementRef.current) return;
-
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
-
-    const actualDx = dx / scale;
-    const actualDy = dy / scale;
-
-    elementRef.current.style.left = `${dragStartRef.current.left + actualDx}px`;
-    elementRef.current.style.top = `${dragStartRef.current.top + actualDy}px`;
-  };
-
-  const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStartRef.current || !elementRef.current) return;
-
-    elementRef.current.releasePointerCapture(e.pointerId);
-    setIsDragging(false);
-
-    const finalLeftPx = parseFloat(elementRef.current.style.left);
-    const finalTopPx = parseFloat(elementRef.current.style.top);
-
-    const newX = pxToMm(finalLeftPx);
-    const newY = pxToMm(finalTopPx);
-
-    updateSlot(slot.id, { x: newX, y: newY });
-    dragStartRef.current = null;
-  };
-
-  const getBackgroundColor = () => {
-    const hex = slot.style?.background?.value?.hex;
-    const opacity = slot.style?.background?.value?.opacity ?? 1;
-
-    if (!hex) return "rgba(229, 229, 229, 0.5)"; // Varsayılan renk
-
-    const { r, g, b } = hexToRgb(hex);
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
 
   const style: React.CSSProperties = {
-    left: `${mmToPx(slot.x)}px`,
-    top: `${mmToPx(slot.y)}px`,
-    width: `${mmToPx(slot.width)}px`,
-    height: `${mmToPx(slot.height)}px`,
-    position: "absolute",
-    touchAction: "none",
-    backgroundColor: getBackgroundColor(),
+    gridColumn: `span ${slot.colSpan || 1}`,
+    gridRow: `span ${slot.rowSpan || 1}`,
+    position: "relative",
+    overflow: "hidden", // content should not spill out
   };
 
   return (
     <div
-      ref={elementRef}
-      id={`slot-${slot.id}`}
+      id={slot.id}
       style={style}
       className={`
         border-dashed border-neutral-400 border
+        bg-neutral-100 
         ${isSelected ? "ring-2 ring-blue-500 ring-offset-1" : ""}
-        ${isDragging ? "cursor-grabbing shadow-lg" : "cursor-grab"}
       `}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onDragStart={(e) => e.preventDefault()}
+      onClick={() => setSelectedSlotId(slot.id)}
     >
-      {slot.type === 'text' ? (
-        <TextBlock slot={slot} isSelected={isSelected} />
-      ) : (
-        <div className="w-full h-full" />
-      )}
+      <div className='absolute top-0 left-1 text-xs text-neutral-500'>
+        {displayNumber > 0 ? displayNumber : ''}
+      </div>
+      <div className='w-full h-full flex items-center justify-center'>
+        {renderContent(slot)}
+      </div>
     </div>
   );
 };

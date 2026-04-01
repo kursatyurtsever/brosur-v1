@@ -1,33 +1,36 @@
 
 import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { PrintSpec } from '../types';
+import { immer } from 'zustand/middleware/immer';
+import type { GlobalLayoutSettings } from '../types';
 
 interface SettingsState {
   language: 'tr' | 'en';
   autoSaveInterval: number; // in milliseconds
-  defaultPrintSpec: PrintSpec;
+  layout: GlobalLayoutSettings;
 }
 
 interface SettingsActions {
   setLanguage: (language: 'tr' | 'en') => void;
   setAutoSaveInterval: (interval: number) => void;
-  setDefaultPrintSpec: (spec: PrintSpec) => void;
+  setLayout: (settings: Partial<GlobalLayoutSettings>) => void;
 }
 
-const defaultSpec: PrintSpec = {
-  bleed: 3,
-  margin: 5,
-  iccProfile: 'Coated FOGRA39',
+const initialState: SettingsState = {
+  language: 'tr',
+  autoSaveInterval: 30000, // 30 seconds
+  layout: {
+    gap: 2,           // mm cinsinden hücreler arası boşluk
+    footerHeightMm: 15,
+    rows: 4,               // Sabit. Değiştirilemez.
+    cols: 4                // Sabit. Değiştirilemez.
+  },
 };
 
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
   persist(
     immer((set) => ({
-      language: 'tr',
-      autoSaveInterval: 30000, // 30 seconds
-      defaultPrintSpec: defaultSpec,
+      ...initialState,
 
       setLanguage: (language) =>
         set((state) => {
@@ -39,9 +42,9 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
           state.autoSaveInterval = interval;
         }),
         
-      setDefaultPrintSpec: (spec) => 
+      setLayout: (settings) => 
         set((state) => {
-            state.defaultPrintSpec = spec;
+            state.layout = { ...state.layout, ...settings };
         }),
     })),
     {

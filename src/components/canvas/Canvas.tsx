@@ -1,13 +1,28 @@
 
 import React, { useRef } from 'react';
 import { useDocStore } from '@/store/useDocStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { useCanvasTransform } from '@/hooks/useCanvasTransform';
+import { computeGlobalCellH } from '@/services/layoutEngine';
 import PageFrame from './PageFrame';
 
 const Canvas: React.FC = () => {
-  const pages = useDocStore(state => state.document?.pages) || [];
+  const document = useDocStore(state => state.document);
+  const settings = useSettingsStore(state => state.layout);
   const containerRef = useRef<HTMLDivElement>(null);
   const { scale, pan } = useCanvasTransform(containerRef);
+
+  if (!document) {
+    // or a loading spinner
+    return <div style={{backgroundColor: '#171717', width: '100%', height: '100%'}}>Loading Document...</div>;
+  }
+
+  // Calculate the single global cell height for all pages
+  const cellH = computeGlobalCellH(
+    document.pages,
+    document.product.height,
+    settings
+  );
 
   const containerStyle: React.CSSProperties = {
     width: '100%',
@@ -35,8 +50,13 @@ const Canvas: React.FC = () => {
     <div id="canvas-container" ref={containerRef} style={containerStyle}>
       <div style={transformWrapperStyle}>
         <div style={pagesContainerStyle}>
-          {pages.map(page => (
-            <PageFrame key={page.id} page={page} />
+          {document.pages.map(page => (
+            <PageFrame 
+              key={page.pageNumber}
+              pageConfig={page}
+              settings={settings}
+              cellH={cellH}
+            />
           ))}
         </div>
       </div>
