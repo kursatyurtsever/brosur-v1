@@ -30,3 +30,25 @@
 - AI servisi doğrudan layout engine fonksiyonlarını çağıracak, Store'a müdahale etmeyecek.
 
 Vertex AI üzerinden bağlandığım için yanıtlarını her zaman temiz Markdown içinde ver ve JSON objelerini bozma.
+
+## 📓 PROJE HAFIZASI KURALI
+- Kök dizinde PROGRESS.md dosyası bulunur.
+- Her görev başarıyla tamamlandığında bu dosyaya aşağıdaki formatta bir kayıt eklenir:
+
+## Tarih ve Saat
+(İşlemin yapıldığı zaman otomatik olarak eklenecek)
+
+## Yapılan İşlem
+(Kısa başlık)
+
+## Teknik Detaylar
+(Kullanılan algoritmalar, mimari kararlar)
+
+## Kritik Kararlar
+(Neden bu yolu seçtik?)
+
+## Sıradaki Adım
+(Yol haritasına göre bir sonraki görev)
+
+- Bu dosya proje hafızasıdır, hiçbir kayıt silinmez.
+- Yol haritası (matbaa_yol_haritasi.docx) dosyanın başında bulunur.
