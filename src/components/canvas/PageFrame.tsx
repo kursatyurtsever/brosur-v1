@@ -10,9 +10,17 @@ interface PageFrameProps {
   pageConfig: PageConfig;
   settings: GlobalLayoutSettings;
   cellH: number;
+  isFirstInSurface: boolean;
+  isLastInSurface: boolean;
 }
 
-const PageFrame: React.FC<PageFrameProps> = ({ pageConfig, settings, cellH }) => {
+const PageFrame: React.FC<PageFrameProps> = ({ 
+  pageConfig, 
+  settings, 
+  cellH, 
+  isFirstInSurface, 
+  isLastInSurface 
+}) => {
   const { slots } = pageConfig;
   
   const metrics = computeGridMetrics(pageConfig, cellH, settings);
@@ -28,16 +36,19 @@ const PageFrame: React.FC<PageFrameProps> = ({ pageConfig, settings, cellH }) =>
   const pageStyle: React.CSSProperties = {
     width: `${widthPx}px`,
     height: `${heightPx}px`,
-    backgroundColor: 'white',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1)',
-    position: 'relative',
+    position: 'relative', // Grid container'ı konumlandırmak için gerekli
+    // Dış çerçeve stilleri (arka plan, gölge) SurfaceFrame'e taşındı.
   };
+
+  // Katlama paylarını hesaba kat
+  const leftMargin = pageConfig.safeZone[3];
+  const rightMargin = pageConfig.safeZone[1];
 
   const gridContainerStyle: React.CSSProperties = {
     position: 'absolute',
-    top: `${gridOriginYPx}px`,
-    left: `${mmToPx(pageConfig.safeZone[3])}px`,
-    right: `${mmToPx(pageConfig.safeZone[1])}px`,
+    top: `${mmToPx(pageConfig.safeZone[0])}`,
+    left: `${mmToPx(leftMargin)}px`,
+    right: `${mmToPx(rightMargin)}px`,
     bottom: `${mmToPx(pageConfig.safeZone[2] + settings.footerHeightMm)}px`,
     display: 'grid',
     gridTemplateColumns: `repeat(${settings.cols}, ${cellWPx}px)`,
@@ -57,9 +68,17 @@ const PageFrame: React.FC<PageFrameProps> = ({ pageConfig, settings, cellH }) =>
     displayNumberMap.set(slot.id, index + 1);
   });
 
+  const pageNumberStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '5px',
+    right: '10px',
+    fontSize: '10px',
+    color: '#888',
+    fontFamily: 'sans-serif',
+  };
+
   return (
     <div style={pageStyle}>
-      <BleedOverlay /> 
       <div style={gridContainerStyle}>
         {slots.map(slot => (
           <SlotPlaceholder 
@@ -69,6 +88,7 @@ const PageFrame: React.FC<PageFrameProps> = ({ pageConfig, settings, cellH }) =>
           />
         ))}
       </div>
+      <div style={pageNumberStyle}>Sayfa {pageConfig.pageNumber}</div>
     </div>
   );
 };

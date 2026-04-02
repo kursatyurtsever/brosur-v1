@@ -1,8 +1,10 @@
-
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Document, PageConfig, Slot, SlotContent } from '../types';
+import { getAvailableTemplates } from '@/services/templateService';
+import { useSettingsStore } from './useSettingsStore';
+import type { Document, PageConfig, Slot, SlotContent, Surface } from '../types';
 import { getSurfaceNumber } from '../lib/surfaceUtils';
+import { nanoid } from 'nanoid';
 
 const MAX_HISTORY = 50;
 
@@ -34,24 +36,14 @@ interface DocState {
 }
 
 interface DocActions {
-  // Document Level
   setDocument: (doc: Document) => void;
   initDocument: () => void;
-
-  // Page Level
-  addPage: () => void;
   updatePageConfig: (pageNumber: number, config: Partial<Omit<PageConfig, 'slots'>>) => void;
-  removePage: (pageNumber: number) => void;
-
-  // Slot Level
   updateSlotContent: (slotId: string, content: SlotContent | null) => void;
-  mergeSlots: (slotIds: string[]) => void;
-  unmergeSlots: (slotId: string) => void;
-
-  // History
+  loadTemplate: (templateId: string) => void;
   undo: () => void;
   redo: () => void;
-  _snapshot: () => void; // Internal action for history
+  _snapshot: () => void;
 }
 
 export const useDocStore = create<DocState & DocActions>()(
@@ -59,12 +51,11 @@ export const useDocStore = create<DocState & DocActions>()(
     document: null,
     history: { past: [], future: [] },
 
-    // INTERNAL: Snapshots the current state for undo/redo
     _snapshot: () => {
       set(state => {
         if (!state.document) return;
-        state.history.future = []; // Clear future on new action
-        state.history.past.push(JSON.parse(JSON.stringify(state.document))); // Deep copy
+        state.history.future = [];
+        state.history.past.push(JSON.parse(JSON.stringify(state.document)));
         if (state.history.past.length > MAX_HISTORY) {
           state.history.past.shift();
         }
@@ -83,67 +74,65 @@ export const useDocStore = create<DocState & DocActions>()(
       get()._snapshot();
       set(state => {
         if (!state.document) return;
-        const page = state.document.pages.find(p => p.pageNumber === pageNumber);
-        if (page) {
-          Object.assign(page, config);
+        for (const surface of state.document.surfaces) {
+          const page = surface.pages.find(p => p.pageNumber === pageNumber);
+          if (page) {
+            Object.assign(page, config);
+            return;
+          }
         }
-      });
-    },
-    
-    addPage: () => {
-      get()._snapshot();
-      set(state => {
-        if (!state.document) return;
-        const newPageNumber = state.document.pages.length + 1;
-        const newPageConfig: PageConfig = {
-          pageNumber: newPageNumber,
-          widthMm: state.document.product.width, // default to product width
-          heightMm: state.document.product.height, // default to product height
-          safeZone: [10, 10, 10, 10], // default safe zone
-          freeRowsTop: 0,
-          slots: createPageSlots(newPageNumber),
-        };
-        state.document.pages.push(newPageConfig);
-      });
-    },
-
-    removePage: (pageNumber) => {
-      get()._snapshot();
-      set(state => {
-        if (!state.document) return;
-        state.document.pages = state.document.pages.filter(p => p.pageNumber !== pageNumber);
-        // Optional: Renumber subsequent pages
-        state.document.pages.forEach((page, index) => {
-          page.pageNumber = index + 1;
-          // TODO: Update slot IDs and globalIndexes if page numbers change. Deferring this complexity.
-        });
       });
     },
 
     updateSlotContent: (slotId, content) => {
-        get()._snapshot();
-        set(state => {
-            if (!state.document) return;
-            for (const page of state.document.pages) {
-              const slot = page.slots.find(s => s.id === slotId);
-              if (slot) {
-                slot.content = content;
-                return; // Exit once found and updated
-              }
+      get()._snapshot();
+      set(state => {
+        if (!state.document) return;
+        for (const surface of state.document.surfaces) {
+          for (const page of surface.pages) {
+            const slot = page.slots.find(s => s.id === slotId);
+            if (slot) {
+              slot.content = content;
+              return;
             }
-        });
+          }
+        }
+      });
     },
 
-    mergeSlots: (slotIds) => {
-        get()._snapshot();
-        // TODO: Re-implement merge logic with new data structure in a later step
-        console.warn('mergeSlots not implemented in new architecture yet');
-    },
+    loadTemplate: (templateId) => {
+      get()._snapshot();
+      const templates = getAvailableTemplates();
+      const selectedTemplate = templates.find(t => t.id === templateId);
 
-    unmergeSlots: (slotId) => {
-        get()._snapshot();
-        // TODO: Re-implement unmerge logic with new data structure in a later step
-        console.warn('unmergeSlots not implemented in new architecture yet');
+      if (!selectedTemplate) {
+        console.warn(`Template with id "${templateId}" not found.`);
+        return;
+      }
+
+      set(state => {
+        if (!state.document) return;
+
+        // Create full Surface and PageConfig objects from template
+        const newSurfaces: Surface[] = selectedTemplate.surfaces.map((templateSurface, index) => ({
+          id: `surface-${index}-${nanoid()}`,
+          name: templateSurface.name,
+          pages: templateSurface.pages.map(templatePage => ({
+            ...(templatePage as PageConfig),
+            slots: createPageSlots(templatePage.pageNumber),
+          })),
+        }));
+
+        state.document.surfaces = newSurfaces;
+
+        if (selectedTemplate.layout) {
+          useSettingsStore.getState().setLayout(selectedTemplate.layout);
+        }
+
+        if (selectedTemplate.printSpec) {
+          Object.assign(state.document.printSpec, selectedTemplate.printSpec);
+        }
+      });
     },
 
     undo: () => {
@@ -152,7 +141,7 @@ export const useDocStore = create<DocState & DocActions>()(
         if (past.length === 0) return;
         const previous = past.pop();
         if (state.document) {
-          future.unshift(JSON.parse(JSON.stringify(state.document))); // Deep copy
+          future.unshift(JSON.parse(JSON.stringify(state.document)));
         }
         state.document = previous ?? null;
       });
@@ -164,23 +153,26 @@ export const useDocStore = create<DocState & DocActions>()(
         if (future.length === 0) return;
         const next = future.shift();
         if (state.document) {
-          past.push(JSON.parse(JSON.stringify(state.document))); // Deep copy
+          past.push(JSON.parse(JSON.stringify(state.document)));
         }
         state.document = next ?? null;
       });
     },
 
     initDocument: () => {
-      const initialPages: PageConfig[] = [
-        {
-          pageNumber: 1,
-          widthMm: 210,
-          heightMm: 297,
-          safeZone: [10, 10, 10, 10],
-          freeRowsTop: 0,
-          slots: createPageSlots(1),
-        },
-      ];
+      const initialSurface: Surface = {
+        id: 'surface-0',
+        pages: [
+          {
+            pageNumber: 1,
+            widthMm: 210,
+            heightMm: 297,
+            safeZone: [10, 10, 10, 10],
+            freeRowsTop: 0,
+            slots: createPageSlots(1),
+          },
+        ],
+      };
 
       const initialDoc: Document = {
         id: 'doc-1',
@@ -196,7 +188,7 @@ export const useDocStore = create<DocState & DocActions>()(
           margin: 5,
           iccProfile: 'Coated FOGRA39',
         },
-        pages: initialPages,
+        surfaces: [initialSurface],
       };
 
       get().setDocument(initialDoc);

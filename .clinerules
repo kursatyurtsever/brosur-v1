@@ -231,3 +231,14 @@ Her başarıyla tamamlanan adımdan sonra kök dizindeki `PROGRESS.md` dosyasın
 ### Sıradaki Adım
 (Yol haritasına göre bir sonraki görev)
 ```
+## 13. GÖRSEL VE STİL MİMARİSİ (TAILWIND CSS)
+
+Bu proje, arayüz stilendirmesi için __Tailwind CSS__ kullanır. Bu yaklaşım, tutarlı bir tasarım dili oluşturmayı ve bakımı kolaylaştırmayı hedefler.
+
+- __Utility-First Yaklaşımı:__ Component'ler doğrudan JSX içinde `className` aracılığıyla stillendirilir. Özel CSS sınıfları oluşturmak yerine, Tailwind'in sunduğu hazır utility sınıfları (`flex`, `p-4`, `text-white` vb.) kullanılır. Bu, CSS dosyalarında şişkinliği önler ve stillerin bileşene özgü kalmasını sağlar.
+
+- __Merkezi Renk Paleti:__ Tüm renkler `src/app/globals.css` dosyasındaki `:root` ve `.dark` seçicileri altında CSS değişkenleri (`--background`, `--foreground`, `--primary` vb.) olarak tanımlanmıştır. Component'ler renkleri doğrudan (`text-red-500`) değil, bu değişkenleri kullanan Tailwind sınıfları aracılığıyla (`bg-background`, `text-primary`) almalıdır. Bu, tema (açık/koyu mod) yönetimini merkezileştirir.
+
+- __Eski Sistemlerin Terk Edilmesi:__ Projede daha önce kullanılmış olabilecek manuel renk seçiciler (`color picker`) ve özel stil override'ları tamamen terk edilmiştir. Tüm arayüz elemanları, merkezi temadan beslenerek görsel bir bütünlük sağlamalıdır.
+
+- __Kesin Yasak:__ Bir component içine `<style>` etiketi veya `style` prop'u ile manuel olarak stil yazmak kesinlikle yasaktır (dinamik olarak hesaplanan ve başka yolu olmayan `transform` gibi istisnalar hariç). Tüm stiller Tailwind sınıfları ile yönetilmelidir.
